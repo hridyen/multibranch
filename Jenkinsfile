@@ -14,7 +14,8 @@ pipeline {
 
         stage('Init Repo') {
             steps {
-                git url: "${REPO_URL}"
+                git branch: "main",
+                    url: "${REPO_URL}"
             }
         }
 
@@ -27,7 +28,7 @@ pipeline {
                     ).trim()
 
                     env.ACTIVE_BRANCH = branch
-                    echo "Latest updated branch: ${env.ACTIVE_BRANCH}"
+                    echo " Latest updated branch: ${env.ACTIVE_BRANCH}"
                 }
             }
         }
@@ -41,7 +42,6 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                echo "Building Docker image for ${env.ACTIVE_BRANCH}"
                 sh "docker build -t ${APP_NAME}:${env.ACTIVE_BRANCH} ."
             }
         }
@@ -50,8 +50,6 @@ pipeline {
             steps {
                 script {
                     def port = (env.ACTIVE_BRANCH == "main") ? "3003" : "3004"
-
-                    echo " Running ${env.ACTIVE_BRANCH} on port ${port}"
 
                     sh """
                     docker rm -f ${APP_NAME}-${env.ACTIVE_BRANCH} || true
@@ -67,24 +65,17 @@ pipeline {
 
         stage('Health Check') {
             steps {
-                echo "Checking container..."
                 sh "docker ps | grep ${APP_NAME}-${env.ACTIVE_BRANCH}"
-            }
-        }
-
-        stage('Deploy Info') {
-            steps {
-                echo " Successfully deployed ${env.ACTIVE_BRANCH}"
             }
         }
     }
 
     post {
         success {
-            echo " Pipeline SUCCESS for ${env.ACTIVE_BRANCH}"
+            echo " SUCCESS for ${env.ACTIVE_BRANCH}"
         }
         failure {
-            echo "Pipeline FAILED"
+            echo " FAILED"
         }
     }
 }

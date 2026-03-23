@@ -35,9 +35,9 @@ pipeline {
                     def port = ""
 
                     if (params.BRANCH_NAME == "main") {
-                        port = "3000"
+                        port = "3003"
                     } else if (params.BRANCH_NAME == "dev") {
-                        port = "3001"
+                        port = "3004"
                     }
 
                     echo "Running ${params.BRANCH_NAME} on port ${port}"

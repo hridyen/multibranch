@@ -36,11 +36,9 @@ pipeline {
         stage('Run Container') {
             steps {
                 script {
+                    def port = (params.BRANCH_NAME == "main") ? "3003" : "3004"
 
-                    // 🔥 Fixed ports
-                    def port = (params.BRANCH_NAME == "main") ? "3004" : "3005"
-
-                    echo "Running ${params.BRANCH_NAME} on port ${port}"
+                    echo " Running ${params.BRANCH_NAME} on port ${port}"
 
                     sh """
                     docker rm -f ${APP_NAME}-${params.BRANCH_NAME} || true
@@ -54,7 +52,7 @@ pipeline {
             }
         }
 
-        stage('Deploy main') {
+        stage('Deploy Dev') {
             when {
                 expression { params.BRANCH_NAME == 'dev' }
             }
@@ -63,12 +61,12 @@ pipeline {
             }
         }
 
-        stage('Deploy dev') {
+        stage('Deploy Main') {
             when {
                 expression { params.BRANCH_NAME == 'main' }
             }
             steps {
-                echo "PROD DEPLOY SUCCESS on port 3005"
+                echo "MAIN (PROD) DEPLOY SUCCESS on port 3003"
             }
         }
 
@@ -82,7 +80,7 @@ pipeline {
 
     post {
         success {
-            echo "Pipeline SUCCESS for ${params.BRANCH_NAME}"
+            echo " Pipeline SUCCESS for ${params.BRANCH_NAME}"
         }
         failure {
             echo " Pipeline FAILED for ${params.BRANCH_NAME}"

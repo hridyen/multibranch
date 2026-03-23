@@ -31,11 +31,11 @@ pipeline {
                     def port = ""
 
                     if (params.BRANCH_NAME == "main") {
-                        port = "3002"
-                    } else if (params.BRANCH_NAME == "dev") {
-                        port = "3003"
-                    } else {
                         port = "3004"
+                    } else if (params.BRANCH_NAME == "dev") {
+                        port = "3005"
+                    } else {
+                        port = "3006"
                     }
 
                     sh """

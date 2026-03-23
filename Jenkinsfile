@@ -7,20 +7,27 @@ pipeline {
 
     environment {
         APP_NAME = "multi-branch-project"
+        REPO_URL = "https://github.com/hridyen/multibranch.git"
     }
 
     stages {
+
+        stage('Init Repo') {
+            steps {
+                git url: "${REPO_URL}"
+            }
+        }
 
         stage('Detect Latest Branch') {
             steps {
                 script {
                     def branch = sh(
-                        script: "git ls-remote origin refs/heads/* --sort='-committerdate' | head -n 1 | awk -F'/' '{print $3}'",
+                        script: "git for-each-ref --sort=-committerdate refs/remotes/origin/ | head -n 1 | sed 's#.*/##'",
                         returnStdout: true
                     ).trim()
 
                     env.ACTIVE_BRANCH = branch
-                    echo " Latest updated branch: ${env.ACTIVE_BRANCH}"
+                    echo "Latest updated branch: ${env.ACTIVE_BRANCH}"
                 }
             }
         }
@@ -28,12 +35,13 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 git branch: "${env.ACTIVE_BRANCH}",
-                    url: 'https://github.com/hridyen/multi-branch-project.git'
+                    url: "${REPO_URL}"
             }
         }
 
         stage('Build Docker Image') {
             steps {
+                echo "Building Docker image for ${env.ACTIVE_BRANCH}"
                 sh "docker build -t ${APP_NAME}:${env.ACTIVE_BRANCH} ."
             }
         }
@@ -57,10 +65,26 @@ pipeline {
             }
         }
 
+        stage('Health Check') {
+            steps {
+                echo "Checking container..."
+                sh "docker ps | grep ${APP_NAME}-${env.ACTIVE_BRANCH}"
+            }
+        }
+
         stage('Deploy Info') {
             steps {
-                echo " Deployed ${env.ACTIVE_BRANCH}"
+                echo " Successfully deployed ${env.ACTIVE_BRANCH}"
             }
+        }
+    }
+
+    post {
+        success {
+            echo " Pipeline SUCCESS for ${env.ACTIVE_BRANCH}"
+        }
+        failure {
+            echo "Pipeline FAILED"
         }
     }
 }

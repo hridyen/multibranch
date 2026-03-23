@@ -1,25 +1,34 @@
 pipeline {
     agent { label 'ubuntu-agent' }
 
+    options {
+        skipDefaultCheckout(true)
+    }
+
     parameters {
-        string(name: 'BRANCH_NAME', defaultValue: 'main', description: 'Branch to build')
+        choice(
+            name: 'BRANCH_NAME',
+            choices: ['main', 'dev'],
+            description: 'Select branch to deploy'
+        )
     }
 
     environment {
-        APP_NAME = "multibranch-singlepipeline"
+        APP_NAME = "multi-branch-project"
     }
 
     stages {
 
-        stage('Checkout') {
+        stage('Checkout Code') {
             steps {
                 git branch: "${params.BRANCH_NAME}",
-                    url: 'https://github.com/hridyen/multibranch-singlepipeline.git'
+                    url: 'https://github.com/hridyen/multi-branch-project.git'
             }
         }
 
-        stage('Build Docker') {
+        stage('Build Docker Image') {
             steps {
+                echo " Building Docker image for ${params.BRANCH_NAME}"
                 sh "docker build -t ${APP_NAME}:${params.BRANCH_NAME} ."
             }
         }
@@ -27,16 +36,9 @@ pipeline {
         stage('Run Container') {
             steps {
                 script {
+                    def port = (params.BRANCH_NAME == "main") ? "3003" : "3004"
 
-                    def port = ""
-
-                    if (params.BRANCH_NAME == "main") {
-                        port = "3002"
-                    } else if (params.BRANCH_NAME == "dev") {
-                        port = "3003"
-                    } else {
-                        port = "3004"
-                    }
+                    echo " Running ${params.BRANCH_NAME} on port ${port}"
 
                     sh """
                     docker rm -f ${APP_NAME}-${params.BRANCH_NAME} || true
@@ -50,22 +52,38 @@ pipeline {
             }
         }
 
-        stage('Deploy DEV') {
+        stage('Deploy Dev') {
             when {
                 expression { params.BRANCH_NAME == 'dev' }
             }
             steps {
-                echo " DEV DEPLOY"
+                echo " DEV DEPLOY SUCCESS on port 3004"
             }
         }
 
-        stage('Deploy PROD') {
+        stage('Deploy Main') {
             when {
                 expression { params.BRANCH_NAME == 'main' }
             }
             steps {
-                echo " PROD DEPLOY"
+                echo "MAIN (PROD) DEPLOY SUCCESS on port 3003"
             }
+        }
+
+        stage('Health Check') {
+            steps {
+                echo " Checking running container..."
+                sh "docker ps | grep ${APP_NAME}-${params.BRANCH_NAME}"
+            }
+        }
+    }
+
+    post {
+        success {
+            echo " Pipeline SUCCESS for ${params.BRANCH_NAME}"
+        }
+        failure {
+            echo " Pipeline FAILED for ${params.BRANCH_NAME}"
         }
     }
 }

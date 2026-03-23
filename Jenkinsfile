@@ -1,11 +1,15 @@
 pipeline {
     agent { label 'ubuntu-agent' }
 
+    options {
+        skipDefaultCheckout(true)
+    }
+
     parameters {
         choice(
             name: 'BRANCH_NAME',
             choices: ['main', 'dev'],
-            description: 'Select branch'
+            description: 'Select branch to deploy'
         )
     }
 
@@ -15,7 +19,7 @@ pipeline {
 
     stages {
 
-        stage('Checkout') {
+        stage('Checkout Code') {
             steps {
                 git branch: "${params.BRANCH_NAME}",
                     url: 'https://github.com/hridyen/multi-branch-project.git'
@@ -24,6 +28,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
+                echo "🔨 Building Docker image for ${params.BRANCH_NAME}"
                 sh "docker build -t ${APP_NAME}:${params.BRANCH_NAME} ."
             }
         }
@@ -32,13 +37,8 @@ pipeline {
             steps {
                 script {
 
-                    def port = ""
-
-                    if (params.BRANCH_NAME == "main") {
-                        port = "3003"
-                    } else if (params.BRANCH_NAME == "dev") {
-                        port = "3004"
-                    }
+                    // 🔥 Fixed ports
+                    def port = (params.BRANCH_NAME == "main") ? "3003" : "3004"
 
                     echo "Running ${params.BRANCH_NAME} on port ${port}"
 
@@ -59,7 +59,7 @@ pipeline {
                 expression { params.BRANCH_NAME == 'dev' }
             }
             steps {
-                echo "DEV DEPLOY"
+                echo " DEV DEPLOY SUCCESS on port 3004"
             }
         }
 
@@ -68,14 +68,24 @@ pipeline {
                 expression { params.BRANCH_NAME == 'main' }
             }
             steps {
-                echo " PROD DEPLOY"
+                echo "PROD DEPLOY SUCCESS on port 3003"
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                echo " Checking running container..."
+                sh "docker ps | grep ${APP_NAME}-${params.BRANCH_NAME}"
             }
         }
     }
 
     post {
         success {
-            echo " Pipeline SUCCESS for ${params.BRANCH_NAME}"
+            echo "Pipeline SUCCESS for ${params.BRANCH_NAME}"
+        }
+        failure {
+            echo " Pipeline FAILED for ${params.BRANCH_NAME}"
         }
     }
 }

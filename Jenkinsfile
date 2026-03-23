@@ -1,16 +1,8 @@
 pipeline {
-    agent { label 'ubuntu-agent' }
+    agent any
 
     options {
         skipDefaultCheckout(true)
-    }
-
-    parameters {
-        choice(
-            name: 'BRANCH_NAME',
-            choices: ['main', 'dev'],
-            description: 'Select branch to deploy'
-        )
     }
 
     environment {
@@ -19,71 +11,56 @@ pipeline {
 
     stages {
 
+        stage('Detect Latest Branch') {
+            steps {
+                script {
+                    def branch = sh(
+                        script: "git ls-remote origin refs/heads/* --sort='-committerdate' | head -n 1 | awk -F'/' '{print $3}'",
+                        returnStdout: true
+                    ).trim()
+
+                    env.ACTIVE_BRANCH = branch
+                    echo " Latest updated branch: ${env.ACTIVE_BRANCH}"
+                }
+            }
+        }
+
         stage('Checkout Code') {
             steps {
-                git branch: "${params.BRANCH_NAME}",
+                git branch: "${env.ACTIVE_BRANCH}",
                     url: 'https://github.com/hridyen/multi-branch-project.git'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                echo " Building Docker image for ${params.BRANCH_NAME}"
-                sh "docker build -t ${APP_NAME}:${params.BRANCH_NAME} ."
+                sh "docker build -t ${APP_NAME}:${env.ACTIVE_BRANCH} ."
             }
         }
 
         stage('Run Container') {
             steps {
                 script {
-                    def port = (params.BRANCH_NAME == "main") ? "3003" : "3004"
+                    def port = (env.ACTIVE_BRANCH == "main") ? "3003" : "3004"
 
-                    echo " Running ${params.BRANCH_NAME} on port ${port}"
+                    echo " Running ${env.ACTIVE_BRANCH} on port ${port}"
 
                     sh """
-                    docker rm -f ${APP_NAME}-${params.BRANCH_NAME} || true
+                    docker rm -f ${APP_NAME}-${env.ACTIVE_BRANCH} || true
 
                     docker run -d -p ${port}:3000 \
-                    -e BRANCH=${params.BRANCH_NAME} \
-                    --name ${APP_NAME}-${params.BRANCH_NAME} \
-                    ${APP_NAME}:${params.BRANCH_NAME}
+                    -e BRANCH=${env.ACTIVE_BRANCH} \
+                    --name ${APP_NAME}-${env.ACTIVE_BRANCH} \
+                    ${APP_NAME}:${env.ACTIVE_BRANCH}
                     """
                 }
             }
         }
 
-        stage('Deploy Dev') {
-            when {
-                expression { params.BRANCH_NAME == 'dev' }
-            }
+        stage('Deploy Info') {
             steps {
-                echo " DEV DEPLOY SUCCESS on port 3004"
+                echo " Deployed ${env.ACTIVE_BRANCH}"
             }
-        }
-
-        stage('Deploy Main') {
-            when {
-                expression { params.BRANCH_NAME == 'main' }
-            }
-            steps {
-                echo "MAIN (PROD) DEPLOY SUCCESS on port 3003"
-            }
-        }
-
-        stage('Health Check') {
-            steps {
-                echo " Checking running container..."
-                sh "docker ps | grep ${APP_NAME}-${params.BRANCH_NAME}"
-            }
-        }
-    }
-
-    post {
-        success {
-            echo " Pipeline SUCCESS for ${params.BRANCH_NAME}"
-        }
-        failure {
-            echo " Pipeline FAILED for ${params.BRANCH_NAME}"
         }
     }
 }

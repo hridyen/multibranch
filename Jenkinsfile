@@ -2,11 +2,15 @@ pipeline {
     agent { label 'ubuntu-agent' }
 
     parameters {
-        string(name: 'BRANCH_NAME', defaultValue: 'main', description: 'Branch to build')
+        choice(
+            name: 'BRANCH_NAME',
+            choices: ['main', 'dev'],
+            description: 'Select branch'
+        )
     }
 
     environment {
-        APP_NAME = "multibranch-singlepipeline"
+        APP_NAME = "multi-branch-project"
     }
 
     stages {
@@ -14,11 +18,11 @@ pipeline {
         stage('Checkout') {
             steps {
                 git branch: "${params.BRANCH_NAME}",
-                    url: 'https://github.com/hridyen/multibranch-singlepipeline.git'
+                    url: 'https://github.com/hridyen/multi-branch-project.git'
             }
         }
 
-        stage('Build Docker') {
+        stage('Build Docker Image') {
             steps {
                 sh "docker build -t ${APP_NAME}:${params.BRANCH_NAME} ."
             }
@@ -31,12 +35,12 @@ pipeline {
                     def port = ""
 
                     if (params.BRANCH_NAME == "main") {
-                        port = "3004"
+                        port = "3000"
                     } else if (params.BRANCH_NAME == "dev") {
-                        port = "3005"
-                    } else {
-                        port = "3006"
+                        port = "3001"
                     }
+
+                    echo "Running ${params.BRANCH_NAME} on port ${port}"
 
                     sh """
                     docker rm -f ${APP_NAME}-${params.BRANCH_NAME} || true
@@ -55,7 +59,7 @@ pipeline {
                 expression { params.BRANCH_NAME == 'dev' }
             }
             steps {
-                echo " DEV DEPLOY"
+                echo "DEV DEPLOY"
             }
         }
 
@@ -66,6 +70,12 @@ pipeline {
             steps {
                 echo " PROD DEPLOY"
             }
+        }
+    }
+
+    post {
+        success {
+            echo " Pipeline SUCCESS for ${params.BRANCH_NAME}"
         }
     }
 }

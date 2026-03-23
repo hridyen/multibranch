@@ -28,7 +28,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                echo "🔨 Building Docker image for ${params.BRANCH_NAME}"
+                echo " Building Docker image for ${params.BRANCH_NAME}"
                 sh "docker build -t ${APP_NAME}:${params.BRANCH_NAME} ."
             }
         }
@@ -38,7 +38,7 @@ pipeline {
                 script {
 
                     // 🔥 Fixed ports
-                    def port = (params.BRANCH_NAME == "main") ? "3003" : "3004"
+                    def port = (params.BRANCH_NAME == "main") ? "3004" : "3005"
 
                     echo "Running ${params.BRANCH_NAME} on port ${port}"
 
@@ -54,7 +54,7 @@ pipeline {
             }
         }
 
-        stage('Deploy DEV') {
+        stage('Deploy main') {
             when {
                 expression { params.BRANCH_NAME == 'dev' }
             }
@@ -63,12 +63,12 @@ pipeline {
             }
         }
 
-        stage('Deploy PROD') {
+        stage('Deploy dev') {
             when {
                 expression { params.BRANCH_NAME == 'main' }
             }
             steps {
-                echo "PROD DEPLOY SUCCESS on port 3003"
+                echo "PROD DEPLOY SUCCESS on port 3005"
             }
         }
 
